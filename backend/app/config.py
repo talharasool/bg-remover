@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # File settings
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    max_file_size: int = 20 * 1024 * 1024  # 20MB
     max_batch_size: int = 20
     max_resolution: int = 25_000_000  # 25 megapixels
     processing_timeout: int = 60  # seconds
