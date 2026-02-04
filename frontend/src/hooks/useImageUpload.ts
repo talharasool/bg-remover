@@ -2,6 +2,15 @@ import { useCallback, useState } from 'react';
 import { uploadImage, uploadImages } from '@/lib/api';
 import { useImageStore } from '@/store/imageStore';
 
+// Fallback UUID generator for non-HTTPS contexts
+function generateId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function useImageUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +25,7 @@ export function useImageUpload() {
     // Add images to store
     const store = useImageStore.getState();
     const newImages = files.map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       file,
       preview: URL.createObjectURL(file),
       status: 'uploading' as const,
@@ -46,6 +55,7 @@ export function useImageUpload() {
       // Update store with job info
       setJobInfo(fileIds, response.job_id, imageIds);
     } catch (err) {
+      console.error('Upload error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMessage);
 

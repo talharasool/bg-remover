@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     retention_hours: int = 24
 
     # CORS settings
-    cors_origins: list[str] = ["http://localhost:3000", "http://frontend:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://frontend:3000", "http://192.168.100.176:3000", "*"]
 
     # Supported formats
     allowed_extensions: set[str] = {"jpg", "jpeg", "png", "webp"}

@@ -10,7 +10,7 @@ const ACCEPTED_TYPES = {
   'image/webp': ['.webp'],
 };
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 const MAX_FILES = 20;
 
 export default function DropZone() {
@@ -39,77 +39,85 @@ export default function DropZone() {
       <div
         {...getRootProps()}
         className={`
-          relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
-          transition-colors duration-200
-          ${isDragActive && !isDragReject ? 'border-primary-500 bg-primary-50' : ''}
-          ${isDragReject ? 'border-red-500 bg-red-50' : ''}
-          ${!isDragActive && !isDragReject ? 'border-gray-300 hover:border-primary-400 hover:bg-gray-50' : ''}
-          ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}
+          relative group cursor-pointer
+          rounded-3xl border-2 border-dashed
+          transition-all duration-400 ease-smooth
+          ${isDragActive && !isDragReject
+            ? 'border-accent bg-accent/5 scale-[1.01]'
+            : 'border-slate-200 hover:border-accent/50 hover:bg-slate-50/50'}
+          ${isDragReject ? 'border-red-400 bg-red-50/50' : ''}
+          ${isUploading ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       >
         <input {...getInputProps()} />
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-primary-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
+        <div className="flex flex-col items-center justify-center py-16 px-8">
+          {/* Animated icon */}
+          <div className={`
+            relative mb-6 transition-transform duration-400 ease-smooth
+            ${isDragActive ? 'scale-110' : 'group-hover:scale-105'}
+          `}>
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-violet/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
+
+            {/* Icon container */}
+            <div className={`
+              relative w-20 h-20 rounded-2xl
+              bg-gradient-to-br from-accent/10 to-violet/10
+              flex items-center justify-center
+              transition-all duration-400
+              ${isDragActive ? 'from-accent/20 to-violet/20' : ''}
+            `}>
+              <svg
+                className={`w-9 h-9 transition-colors duration-300 ${isDragActive ? 'text-accent' : 'text-slate-400 group-hover:text-accent'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
           </div>
 
+          {/* Text content */}
           {isDragActive ? (
-            <p className="text-lg font-medium text-primary-600">
-              Drop your images here...
-            </p>
-          ) : (
-            <>
-              <div>
-                <p className="text-lg font-medium text-gray-700">
-                  Drag & drop images here
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  or click to browse
-                </p>
-              </div>
-              <p className="text-xs text-gray-400">
-                JPG, PNG, WEBP up to 10MB (max 20 files)
+            <div className="text-center animate-fade-in">
+              <p className="text-subtitle text-accent font-medium">
+                Drop to upload
               </p>
-            </>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-subtitle text-slate-700 mb-2">
+                Drop your images here
+              </p>
+              <p className="text-caption text-slate-400 mb-4">
+                or click to browse
+              </p>
+              <div className="flex items-center gap-2 text-tiny text-slate-400">
+                <span className="px-2 py-1 bg-slate-100 rounded-lg">JPG</span>
+                <span className="px-2 py-1 bg-slate-100 rounded-lg">PNG</span>
+                <span className="px-2 py-1 bg-slate-100 rounded-lg">WEBP</span>
+                <span className="text-slate-300">•</span>
+                <span>Up to 20MB</span>
+              </div>
+            </div>
           )}
 
+          {/* Loading overlay */}
           {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="animate-spin h-5 w-5 text-primary-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <span className="text-sm font-medium text-gray-700">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-3xl">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-2 border-slate-200" />
+                  <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                </div>
+                <span className="text-caption font-medium text-slate-600">
                   Uploading...
                 </span>
               </div>
@@ -118,9 +126,10 @@ export default function DropZone() {
         </div>
       </div>
 
+      {/* Error message */}
       {error && (
-        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-2xl animate-fade-in">
+          <p className="text-caption text-red-600">{error}</p>
         </div>
       )}
     </div>

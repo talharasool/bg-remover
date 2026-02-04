@@ -23,7 +23,7 @@ export default function BulkDownload() {
 
     try {
       const zip = new JSZip();
-      const folder = zip.folder('processed-images');
+      const folder = zip.folder('background-removed');
 
       if (!folder) throw new Error('Failed to create ZIP folder');
 
@@ -39,7 +39,7 @@ export default function BulkDownload() {
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
-      saveAs(content, 'processed-images.zip');
+      saveAs(content, 'background-removed.zip');
     } catch (error) {
       console.error('Bulk download failed:', error);
     } finally {
@@ -53,35 +53,25 @@ export default function BulkDownload() {
   }
 
   return (
-    <div className="w-full">
+    <div className="animate-fade-in">
       {isDownloading ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Creating ZIP...</span>
-            <span className="text-gray-500">{Math.round(progress)}%</span>
+        <div className="p-4 bg-slate-50 rounded-2xl">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-caption font-medium text-slate-600">
+              Creating ZIP file...
+            </span>
+            <span className="text-tiny text-slate-400">
+              {Math.round(progress)}%
+            </span>
           </div>
           <Progress value={progress} />
         </div>
       ) : (
-        <Button
-          onClick={handleBulkDownload}
-          className="w-full"
-          variant="primary"
-        >
-          <svg
-            className="w-4 h-4 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-            />
+        <Button onClick={handleBulkDownload} variant="primary" size="lg" className="w-full">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Download All ({completedImages.length} images)
+          <span>Download All ({completedImages.length})</span>
         </Button>
       )}
     </div>

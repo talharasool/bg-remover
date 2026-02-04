@@ -3,26 +3,50 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'soft';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'md', isLoading, disabled, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = `
+      relative inline-flex items-center justify-center font-medium
+      transition-all duration-300 ease-smooth
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
+      disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+      overflow-hidden
+    `;
 
     const variants = {
-      primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500',
-      outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
-      ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
+      primary: `
+        bg-gradient-to-br from-accent to-violet text-white
+        hover:shadow-[0_8px_24px_-4px_rgba(99,102,241,0.4)]
+        hover:-translate-y-0.5 active:translate-y-0
+        rounded-2xl
+      `,
+      secondary: `
+        bg-white text-slate-700 border border-slate-200
+        hover:border-slate-300 hover:shadow-soft
+        hover:-translate-y-0.5 active:translate-y-0
+        rounded-2xl
+      `,
+      ghost: `
+        text-slate-600 hover:text-slate-900
+        hover:bg-slate-100/80
+        rounded-xl
+      `,
+      soft: `
+        bg-accent-soft/30 text-accent
+        hover:bg-accent-soft/50
+        rounded-2xl
+      `,
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base',
+      sm: 'px-4 py-2 text-caption gap-1.5',
+      md: 'px-6 py-3 text-body gap-2',
+      lg: 'px-8 py-4 text-subtitle gap-2.5',
     };
 
     return (
@@ -34,7 +58,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading && (
           <svg
-            className="animate-spin -ml-1 mr-2 h-4 w-4"
+            className="animate-spin h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -45,7 +69,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               cy="12"
               r="10"
               stroke="currentColor"
-              strokeWidth="4"
+              strokeWidth="3"
             />
             <path
               className="opacity-75"
@@ -54,7 +78,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             />
           </svg>
         )}
-        {children}
+        <span className="relative z-10">{children}</span>
       </button>
     );
   }

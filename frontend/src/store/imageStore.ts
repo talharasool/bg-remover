@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { ImageResult, StatusResponse } from '@/lib/api';
 
+// Fallback UUID generator for non-HTTPS contexts
+function generateId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export interface UploadedImage {
   id: string;
   file: File;
@@ -32,7 +41,7 @@ export const useImageStore = create<ImageStore>((set, get) => ({
 
   addImages: (files: File[]) => {
     const newImages: UploadedImage[] = files.map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       file,
       preview: URL.createObjectURL(file),
       status: 'uploading',
