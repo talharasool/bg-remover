@@ -1,0 +1,92 @@
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from typing import List
+from ....models.schemas import UploadResponse, JobStatus
+from ....services.job_manager import job_manager
+from ....services.image_processor import image_processor
+from ....services.storage.local import storage
+from ....utils.validators import validate_image, validate_batch
+
+router = APIRouter()
+
+
+@router.post("/remove-bg", response_model=UploadResponse)
+async def remove_background(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...)
+):
+    """Upload a single image for background removal."""
+
+    # Validate the image
+    content = await validate_image(file)
+
+    # Create a job
+    job = job_manager.create_job([{"filename": file.filename}])
+
+    # Get the image ID from the job
+    image_id = list(job.images.keys())[0]
+
+    # Save original file
+    original_path = await storage.save_original(
+        content, file.filename, job.job_id
+    )
+
+    # Add processing task to background
+    background_tasks.add_task(
+        image_processor.process_job_image,
+        job.job_id,
+        image_id,
+        original_path,
+        file.filename
+    )
+
+    return UploadResponse(
+        job_id=job.job_id,
+        message="Image uploaded successfully. Processing started.",
+        total_images=1
+    )
+
+
+@router.post("/remove-bg/batch", response_model=UploadResponse)
+async def remove_background_batch(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...)
+):
+    """Upload multiple images for background removal (max 20)."""
+
+    # Validate all files
+    validated_files = await validate_batch(files)
+
+    # Create a job with all files
+    images_info = [{"filename": f.filename} for f, _ in validated_files]
+    job = job_manager.create_job(images_info)
+
+    # Prepare batch processing data
+    batch_data = []
+    image_ids = list(job.images.keys())
+
+    for i, (file, content) in enumerate(validated_files):
+        image_id = image_ids[i]
+
+        # Save original file
+        original_path = await storage.save_original(
+            content, file.filename, job.job_id
+        )
+
+        batch_data.append({
+            "image_id": image_id,
+            "original_path": original_path,
+            "filename": file.filename
+        })
+
+    # Add batch processing task to background
+    background_tasks.add_task(
+        image_processor.process_batch,
+        job.job_id,
+        batch_data
+    )
+
+    return UploadResponse(
+        job_id=job.job_id,
+        message=f"{len(validated_files)} images uploaded successfully. Processing started.",
+        total_images=len(validated_files)
+    )
