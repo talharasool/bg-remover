@@ -4,9 +4,12 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from .api.v1.router import api_router
 from .config import settings
+from .db.database import init_db
+from .middleware.rate_limit import limiter, rate_limit_exceeded_handler
 from .utils.cleanup import cleanup_old_files, get_storage_stats
 
 scheduler = AsyncIOScheduler()
@@ -22,6 +25,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings.original_dir.mkdir(parents=True, exist_ok=True)
     settings.processed_dir.mkdir(parents=True, exist_ok=True)
 
+    # Initialize database
+    init_db()
+
     yield
 
     # Shutdown: Stop scheduler
@@ -34,6 +40,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 # CORS middleware
 app.add_middleware(

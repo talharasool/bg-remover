@@ -1,16 +1,18 @@
-from fastapi import APIRouter, BackgroundTasks, File, UploadFile
+from fastapi import APIRouter, File, Request, UploadFile
 
+from ....middleware.rate_limit import limiter
 from ....models.schemas import UploadResponse
-from ....services.image_processor import image_processor
 from ....services.job_manager import job_manager
 from ....services.storage.local import storage
+from ....tasks.worker import process_batch_task, process_image_task
 from ....utils.validators import validate_batch, validate_image
 
 router = APIRouter()
 
 
 @router.post("/remove-bg", response_model=UploadResponse)
-async def remove_background(background_tasks: BackgroundTasks, file: UploadFile = File(...)) -> UploadResponse:
+@limiter.limit("10/minute")
+async def remove_background(request: Request, file: UploadFile = File(...)) -> UploadResponse:
     """Upload a single image for background removal."""
 
     # Validate the image
@@ -27,16 +29,15 @@ async def remove_background(background_tasks: BackgroundTasks, file: UploadFile 
     # Save original file
     original_path = await storage.save_original(content, filename, job.job_id)
 
-    # Add processing task to background
-    background_tasks.add_task(image_processor.process_job_image, job.job_id, image_id, original_path, filename)
+    # Enqueue processing task via Huey
+    process_image_task(job.job_id, image_id, original_path, filename)
 
     return UploadResponse(job_id=job.job_id, message="Image uploaded successfully. Processing started.", total_images=1)
 
 
 @router.post("/remove-bg/batch", response_model=UploadResponse)
-async def remove_background_batch(
-    background_tasks: BackgroundTasks, files: list[UploadFile] = File(...)
-) -> UploadResponse:
+@limiter.limit("5/minute")
+async def remove_background_batch(request: Request, files: list[UploadFile] = File(...)) -> UploadResponse:
     """Upload multiple images for background removal (max 20)."""
 
     # Validate all files
@@ -59,8 +60,8 @@ async def remove_background_batch(
 
         batch_data.append({"image_id": image_id, "original_path": original_path, "filename": filename})
 
-    # Add batch processing task to background
-    background_tasks.add_task(image_processor.process_batch, job.job_id, batch_data)
+    # Enqueue batch processing task via Huey
+    process_batch_task(job.job_id, batch_data)
 
     return UploadResponse(
         job_id=job.job_id,

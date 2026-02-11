@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     allowed_extensions: set[str] = {"jpg", "jpeg", "png", "webp"}
     allowed_content_types: set[str] = {"image/jpeg", "image/png", "image/webp"}
 
+    # Storage backend: "local" or "r2"
+    storage_backend: str = "local"
+
+    # Cloudflare R2 settings (only used when storage_backend = "r2")
+    r2_endpoint_url: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = "clearcut"
+
+    # Rate limiting
+    rate_limit_default: str = "60/minute"
+
     class Config:
         env_file = ".env"
 

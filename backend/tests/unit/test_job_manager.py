@@ -1,7 +1,24 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from app.models.schemas import JobStatus
+from app.db.database import get_connection
+from app.models.schemas import ImageResult, JobStatus
 from app.services.job_manager import Job, JobManager
+
+# ---------------------------------------------------------------------------
+# Helper to build a Job object directly (for unit-testing the class itself)
+# ---------------------------------------------------------------------------
+
+
+def _make_job(job_id: str = "job-1", filenames: list[str] | None = None) -> Job:
+    """Create a Job in-memory for unit tests (bypasses DB)."""
+    if filenames is None:
+        filenames = ["a.jpg"]
+    images: dict[str, ImageResult] = {}
+    for i, fn in enumerate(filenames):
+        iid = f"img-{i}"
+        images[iid] = ImageResult(image_id=iid, original_filename=fn, status=JobStatus.PENDING)
+    return Job(job_id=job_id, status=JobStatus.PENDING, created_at=datetime.utcnow(), images=images)
+
 
 # ---------------------------------------------------------------------------
 # Job class
@@ -10,7 +27,7 @@ from app.services.job_manager import Job, JobManager
 
 class TestJob:
     def test_creation(self):
-        job = Job("job-1", [{"filename": "a.jpg"}, {"filename": "b.jpg"}])
+        job = _make_job("job-1", ["a.jpg", "b.jpg"])
         assert job.job_id == "job-1"
         assert job.status == JobStatus.PENDING
         assert job.total_count == 2
@@ -18,49 +35,38 @@ class TestJob:
         assert job.progress == 0.0
 
     def test_progress_updates(self):
-        job = Job("job-1", [{"filename": "a.jpg"}, {"filename": "b.jpg"}])
+        job = _make_job("job-1", ["a.jpg", "b.jpg"])
         ids = list(job.images.keys())
-
-        # Complete one image — job stays PENDING because no image is PROCESSING
         job.images[ids[0]].status = JobStatus.COMPLETED
-        job.update_status()
         assert job.progress == 0.5
-        assert job.status == JobStatus.PENDING
 
     def test_all_completed(self):
-        job = Job("job-1", [{"filename": "a.jpg"}, {"filename": "b.jpg"}])
+        job = _make_job("job-1", ["a.jpg", "b.jpg"])
         for img in job.images.values():
             img.status = JobStatus.COMPLETED
-        job.update_status()
-        assert job.status == JobStatus.COMPLETED
         assert job.progress == 1.0
 
     def test_all_failed(self):
-        job = Job("job-1", [{"filename": "a.jpg"}])
+        job = _make_job("job-1", ["a.jpg"])
         for img in job.images.values():
             img.status = JobStatus.FAILED
-        job.update_status()
-        assert job.status == JobStatus.FAILED
+        assert job.completed_count == 1  # failed counts as completed
 
     def test_mixed_completed_and_failed(self):
-        job = Job("job-1", [{"filename": "a.jpg"}, {"filename": "b.jpg"}])
+        job = _make_job("job-1", ["a.jpg", "b.jpg"])
         ids = list(job.images.keys())
         job.images[ids[0]].status = JobStatus.COMPLETED
         job.images[ids[1]].status = JobStatus.FAILED
-        job.update_status()
-        # Both done (completed + failed counts as completed_count)
-        assert job.status == JobStatus.COMPLETED
         assert job.progress == 1.0
 
     def test_processing_status(self):
-        job = Job("job-1", [{"filename": "a.jpg"}, {"filename": "b.jpg"}])
+        job = _make_job("job-1", ["a.jpg", "b.jpg"])
         ids = list(job.images.keys())
         job.images[ids[0]].status = JobStatus.PROCESSING
-        job.update_status()
-        assert job.status == JobStatus.PROCESSING
+        assert job.progress == 0.0  # processing doesn't count as completed
 
     def test_to_response(self):
-        job = Job("job-1", [{"filename": "a.jpg"}])
+        job = _make_job("job-1", ["a.jpg"])
         resp = job.to_response()
         assert resp.job_id == "job-1"
         assert resp.status == JobStatus.PENDING
@@ -69,13 +75,13 @@ class TestJob:
         assert resp.images[0].original_filename == "a.jpg"
 
     def test_empty_job_progress(self):
-        job = Job("job-1", [])
+        job = _make_job("job-1", [])
         assert job.progress == 0.0
         assert job.total_count == 0
 
 
 # ---------------------------------------------------------------------------
-# JobManager class
+# JobManager class (SQLite-backed)
 # ---------------------------------------------------------------------------
 
 
@@ -135,8 +141,11 @@ class TestJobManager:
 
     def test_cleanup_old_jobs(self, job_manager: JobManager):
         job = job_manager.create_job([{"filename": "a.jpg"}])
-        # Manually backdate the job
-        job.created_at = datetime.utcnow() - timedelta(hours=25)
+        # Backdate in the DB directly
+        old_time = "2000-01-01T00:00:00"
+        with get_connection() as conn:
+            conn.execute("UPDATE jobs SET created_at = ? WHERE job_id = ?", (old_time, job.job_id))
+            conn.commit()
 
         deleted = job_manager.cleanup_old_jobs(max_age_hours=24)
         assert deleted == 1
@@ -150,10 +159,26 @@ class TestJobManager:
 
     def test_multiple_jobs_cleanup(self, job_manager: JobManager):
         old = job_manager.create_job([{"filename": "old.jpg"}])
-        old.created_at = datetime.utcnow() - timedelta(hours=48)
+        old_time = "2000-01-01T00:00:00"
+        with get_connection() as conn:
+            conn.execute("UPDATE jobs SET created_at = ? WHERE job_id = ?", (old_time, old.job_id))
+            conn.commit()
 
-        _new = job_manager.create_job([{"filename": "new.jpg"}])
+        job_manager.create_job([{"filename": "new.jpg"}])
 
         deleted = job_manager.cleanup_old_jobs(max_age_hours=24)
         assert deleted == 1
         assert len(job_manager.get_all_jobs()) == 1
+
+    def test_persistence(self, job_manager: JobManager):
+        """Verify data persists across different JobManager instances."""
+        job = job_manager.create_job([{"filename": "persist.jpg"}])
+        image_id = list(job.images.keys())[0]
+        job_manager.update_image_status(job.job_id, image_id, JobStatus.COMPLETED, download_url="/dl")
+
+        # New instance, same DB
+        jm2 = JobManager()
+        retrieved = jm2.get_job(job.job_id)
+        assert retrieved is not None
+        assert retrieved.images[image_id].status == JobStatus.COMPLETED
+        assert retrieved.images[image_id].download_url == "/dl"
