@@ -1,6 +1,7 @@
 import os
-from pydantic_settings import BaseSettings
 from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 def get_upload_base() -> Path:
@@ -34,11 +35,7 @@ class Settings(BaseSettings):
 
     # Supported formats
     allowed_extensions: set[str] = {"jpg", "jpeg", "png", "webp"}
-    allowed_content_types: set[str] = {
-        "image/jpeg",
-        "image/png",
-        "image/webp"
-    }
+    allowed_content_types: set[str] = {"image/jpeg", "image/png", "image/webp"}
 
     class Config:
         env_file = ".env"

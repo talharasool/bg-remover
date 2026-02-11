@@ -1,25 +1,21 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from .config import settings
-from .api.v1.router import api_router
-from .utils.cleanup import cleanup_old_files, get_storage_stats
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from .api.v1.router import api_router
+from .config import settings
+from .utils.cleanup import cleanup_old_files, get_storage_stats
 
 scheduler = AsyncIOScheduler()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup: Initialize scheduler for cleanup
-    scheduler.add_job(
-        cleanup_old_files,
-        'interval',
-        hours=1,
-        id='cleanup_job'
-    )
+    scheduler.add_job(cleanup_old_files, "interval", hours=1, id="cleanup_job")
     scheduler.start()
 
     # Ensure upload directories exist
@@ -36,7 +32,7 @@ app = FastAPI(
     title=settings.app_name,
     description="API for automatic image background removal using U2-Net",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware
@@ -53,19 +49,15 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
-async def root():
-    return {
-        "name": settings.app_name,
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+async def root() -> dict[str, str]:
+    return {"name": settings.app_name, "version": "1.0.0", "docs": "/docs"}
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
 @app.get("/stats")
-async def storage_stats():
+async def storage_stats() -> dict:
     return get_storage_stats()

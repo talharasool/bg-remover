@@ -1,12 +1,12 @@
-import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+
 from ..config import settings
 from ..services.job_manager import job_manager
 
 
-def cleanup_old_files():
+def cleanup_old_files() -> dict:
     """Remove files older than retention period."""
     cutoff = datetime.utcnow() - timedelta(hours=settings.retention_hours)
     deleted_count = 0
@@ -20,10 +20,7 @@ def cleanup_old_files():
     # Cleanup job manager
     jobs_deleted = job_manager.cleanup_old_jobs(settings.retention_hours)
 
-    return {
-        "files_deleted": deleted_count,
-        "jobs_deleted": jobs_deleted
-    }
+    return {"files_deleted": deleted_count, "jobs_deleted": jobs_deleted}
 
 
 def _cleanup_directory(directory: Path, cutoff: datetime) -> int:
@@ -61,7 +58,7 @@ def get_storage_stats() -> dict:
         "original_files_size_mb": round(original_size / (1024 * 1024), 2),
         "processed_files_size_mb": round(processed_size / (1024 * 1024), 2),
         "total_size_mb": round((original_size + processed_size) / (1024 * 1024), 2),
-        "jobs_count": len(job_manager.get_all_jobs())
+        "jobs_count": len(job_manager.get_all_jobs()),
     }
 
 
@@ -71,7 +68,7 @@ def _get_directory_size(directory: Path) -> int:
         return 0
 
     total = 0
-    for path in directory.rglob('*'):
+    for path in directory.rglob("*"):
         if path.is_file():
             total += path.stat().st_size
 
