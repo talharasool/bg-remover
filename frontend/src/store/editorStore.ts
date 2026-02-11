@@ -30,6 +30,10 @@ interface EditorState {
   brushHardness: 'soft' | 'hard';
   magicEraserTolerance: number;
 
+  // Zoom/Fullscreen
+  isFullscreen: boolean;
+  zoomLevel: number;
+
   // Initialization
   initLayers: (subjectImage: HTMLImageElement) => void;
 
@@ -63,6 +67,8 @@ interface EditorState {
   setBrushSize: (size: number) => void;
   setBrushHardness: (hardness: 'soft' | 'hard') => void;
   setMagicEraserTolerance: (tolerance: number) => void;
+  setFullscreen: (isFullscreen: boolean) => void;
+  setZoomLevel: (zoom: number) => void;
   bumpMaskVersion: () => void;
 
   // Reset
@@ -84,6 +90,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   brushSize: 20,
   brushHardness: 'hard',
   magicEraserTolerance: 30,
+  isFullscreen: false,
+  zoomLevel: 1,
 
   initLayers: (subjectImage: HTMLImageElement) => {
     const bg = createBackgroundLayer();
@@ -232,6 +240,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setBrushSize: (size) => set({ brushSize: size }),
   setBrushHardness: (hardness) => set({ brushHardness: hardness }),
   setMagicEraserTolerance: (tolerance) => set({ magicEraserTolerance: tolerance }),
+  setFullscreen: (isFullscreen) => set({ isFullscreen, ...(isFullscreen ? {} : { zoomLevel: 1 }) }),
+  setZoomLevel: (zoom) => set({ zoomLevel: Math.max(0.5, Math.min(4, zoom)) }),
   bumpMaskVersion: () => {
     const subject = get().layers.find((l) => l.type === 'subject') as SubjectLayer | undefined;
     if (subject) {
@@ -258,6 +268,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       brushSize: 20,
       brushHardness: 'hard',
       magicEraserTolerance: 30,
+      isFullscreen: false,
+      zoomLevel: 1,
     });
   },
 }));

@@ -280,7 +280,62 @@ export function drawSelectionHandles(
     ctx.fillRect(cx, cy, handleSize, handleSize);
   }
 
+  // Delete button (red circle with X) for sticker/text layers
+  if (layer.type === 'sticker' || layer.type === 'text') {
+    const btnRadius = 10;
+    const btnX = x + w + 2;
+    const btnY = y - 2;
+
+    ctx.beginPath();
+    ctx.arc(btnX, btnY, btnRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(btnX - 4, btnY - 4);
+    ctx.lineTo(btnX + 4, btnY + 4);
+    ctx.moveTo(btnX + 4, btnY - 4);
+    ctx.lineTo(btnX - 4, btnY + 4);
+    ctx.stroke();
+  }
+
   ctx.restore();
+}
+
+/** Returns the center and radius of the delete button for hit detection */
+export function getDeleteButtonCenter(
+  layer: Layer,
+  canvasW: number,
+  canvasH: number
+): { x: number; y: number; radius: number } | null {
+  if (layer.type !== 'sticker' && layer.type !== 'text') return null;
+
+  let x: number, y: number, w: number, h: number;
+
+  if (layer.type === 'text') {
+    const textLayer = layer as TextLayer;
+    const offscreen = document.createElement('canvas').getContext('2d')!;
+    const style = `${textLayer.fontStyle === 'italic' ? 'italic ' : ''}${textLayer.fontWeight === 'bold' ? 'bold ' : ''}`;
+    offscreen.font = `${style}${textLayer.fontSize}px "${textLayer.fontFamily}"`;
+    const metrics = offscreen.measureText(textLayer.content);
+    x = layer.x;
+    y = layer.y;
+    w = metrics.width;
+    h = textLayer.fontSize * 1.2;
+  } else {
+    x = layer.x;
+    y = layer.y;
+    w = layer.width;
+    h = layer.height;
+  }
+
+  return {
+    x: x + w + 2,
+    y: y - 2,
+    radius: 10,
+  };
 }
 
 export function renderLayers(
@@ -321,11 +376,16 @@ export function renderLayers(
   }
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+export function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  format: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png',
+  quality?: number
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))),
-      'image/png'
+      format,
+      quality
     );
   });
 }
