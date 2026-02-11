@@ -1,16 +1,9 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter',
-});
-
 export const metadata: Metadata = {
-  title: 'Background Remover - AI-Powered Image Background Removal',
-  description: 'Remove backgrounds from images instantly with AI. Free, fast, and beautifully simple. Powered by BiRefNet.',
+  title: 'ClearCut - Background Remover',
+  description: 'Professional background removal powered by AI. Fast, accurate, and privacy-focused.',
   keywords: ['background remover', 'remove background', 'AI', 'image editing', 'transparent background'],
 };
 
@@ -20,8 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang="en">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="bg-bg text-text font-sans leading-normal min-h-screen overflow-x-hidden">{children}</body>
     </html>
   );
 }
