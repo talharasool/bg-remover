@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -53,13 +53,11 @@ def large_jpeg() -> bytes:
 @pytest.fixture
 def oversized_bytes() -> bytes:
     """Bytes larger than max file size (21 MB of zeros wrapped in JPEG header)."""
-    # Create a valid but large JPEG
     img = Image.new("RGB", (100, 100), color=(0, 0, 0))
     buf = io.BytesIO()
     img.save(buf, format="JPEG")
     buf.seek(0)
     data = buf.read()
-    # Pad to exceed 20 MB
     return data + b"\x00" * (21 * 1024 * 1024)
 
 
@@ -80,8 +78,9 @@ def tmp_upload_dir(tmp_path: Path):
 
 @pytest.fixture
 def _patch_settings(tmp_upload_dir: Path):
-    """Patch global settings to use temp directories."""
+    """Patch global settings and database to use temp directories."""
     from app.config import settings
+    from app.db.database import init_db, reset_db_path, set_db_path
 
     orig_upload = settings.upload_dir
     orig_original = settings.original_dir
@@ -90,10 +89,17 @@ def _patch_settings(tmp_upload_dir: Path):
     settings.upload_dir = tmp_upload_dir
     settings.original_dir = tmp_upload_dir / "original"
     settings.processed_dir = tmp_upload_dir / "processed"
+
+    # Point DB to temp directory
+    set_db_path(tmp_upload_dir / "test.db")
+    init_db()
+
     yield
+
     settings.upload_dir = orig_upload
     settings.original_dir = orig_original
     settings.processed_dir = orig_processed
+    reset_db_path()
 
 
 # ---------------------------------------------------------------------------
@@ -102,8 +108,8 @@ def _patch_settings(tmp_upload_dir: Path):
 
 
 @pytest.fixture
-def job_manager():
-    """Fresh JobManager instance (not the singleton)."""
+def job_manager(_patch_settings):
+    """Fresh JobManager instance backed by temp SQLite DB."""
     from app.services.job_manager import JobManager
 
     return JobManager()
@@ -124,20 +130,19 @@ def local_storage(_patch_settings):
 
 @pytest.fixture
 async def client(_patch_settings):
-    """Async test client with mocked image processor."""
-    # Patch the image processor to avoid loading BiRefNet model
-    mock_processor = MagicMock()
-    mock_processor.process_image = AsyncMock(return_value=create_test_png())
-    mock_processor.process_job_image = AsyncMock()
-    mock_processor.process_batch = AsyncMock()
+    """Async test client with mocked Huey tasks (tasks are no-ops in tests)."""
+    mock_image_task = MagicMock()
+    mock_batch_task = MagicMock()
 
     with (
-        patch("app.api.v1.endpoints.images.image_processor", mock_processor),
+        patch("app.api.v1.endpoints.images.process_image_task", mock_image_task),
+        patch("app.api.v1.endpoints.images.process_batch_task", mock_batch_task),
         patch("app.services.image_processor.ImageProcessor.__init__", lambda self: None),
     ):
         from app.main import app
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            ac._mock_processor = mock_processor  # type: ignore[attr-defined]
+            ac._mock_image_task = mock_image_task  # type: ignore[attr-defined]
+            ac._mock_batch_task = mock_batch_task  # type: ignore[attr-defined]
             yield ac

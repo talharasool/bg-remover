@@ -1,6 +1,6 @@
 import { LogoSvg } from '../icons/Icons';
 
-type PageName = 'home' | 'pricing' | 'api';
+type PageName = 'home' | 'pricing' | 'api' | 'appicons';
 
 interface NavbarProps {
   currentPage: PageName;
@@ -37,6 +37,12 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
           onClick={() => navigate('api')}
         >
           API
+        </span>
+        <span
+          className={`px-4 py-2 text-sm font-medium rounded-lg cursor-pointer transition-all duration-300 ease-smooth ${currentPage === 'appicons' ? 'text-text bg-surface-light' : 'text-text-muted hover:text-text hover:bg-surface'}`}
+          onClick={() => navigate('appicons')}
+        >
+          App Icons
         </span>
         <button
           className="ml-4 px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-lg border-none cursor-pointer transition-all duration-300 ease-bounce hover:-translate-y-0.5 hover:shadow-[0_10px_30px_var(--color-accent-glow)]"

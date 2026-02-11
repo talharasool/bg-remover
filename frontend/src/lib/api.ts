@@ -84,3 +84,77 @@ export async function downloadImage(jobId: string, imageId: string): Promise<Blo
 
   return response.blob();
 }
+
+// ---------------------------------------------------------------------------
+// API Key Management
+// ---------------------------------------------------------------------------
+
+export interface GenerateKeyResponse {
+  api_key: string;
+  tier: string;
+  requests_limit: number;
+  message: string;
+}
+
+export interface UsageResponse {
+  tier: string;
+  requests_used: number;
+  requests_limit: number;
+  remaining_requests: number;
+  is_active: boolean;
+}
+
+export interface RotateKeyResponse {
+  new_api_key: string;
+  message: string;
+}
+
+export async function generateApiKey(email: string): Promise<GenerateKeyResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/generate-key`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to generate API key');
+  }
+
+  return response.json();
+}
+
+export async function getApiKeyUsage(apiKey: string): Promise<UsageResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/usage?api_key=${encodeURIComponent(apiKey)}`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to get usage');
+  }
+
+  return response.json();
+}
+
+export async function rotateApiKey(apiKey: string): Promise<RotateKeyResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/rotate-key?api_key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to rotate API key');
+  }
+
+  return response.json();
+}
+
+export async function revokeApiKey(apiKey: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/revoke-key?api_key=${encodeURIComponent(apiKey)}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to revoke API key');
+  }
+}

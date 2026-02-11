@@ -37,6 +37,25 @@ class Settings(BaseSettings):
     allowed_extensions: set[str] = {"jpg", "jpeg", "png", "webp"}
     allowed_content_types: set[str] = {"image/jpeg", "image/png", "image/webp"}
 
+    # Storage backend: "local" or "r2"
+    storage_backend: str = "local"
+
+    # Cloudflare R2 settings (only used when storage_backend = "r2")
+    r2_endpoint_url: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = "clearcut"
+
+    # Rate limiting
+    rate_limit_default: str = "60/minute"
+
+    # Stripe settings (only used for paid tier upgrades)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_pro_price_id: str = ""
+    stripe_enterprise_price_id: str = ""
+    frontend_url: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
 

@@ -6,8 +6,8 @@ A full-stack AI-powered image processing platform. Background removal, compressi
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 0 | Engineering Foundation (tests, CI/CD, linting) | In Progress |
-| 1 | Infrastructure for Scale (task queue, persistence, rate limiting, API keys) | Planned |
+| 0 | Engineering Foundation (tests, CI/CD, linting) | Done |
+| 1 | Infrastructure for Scale (task queue, persistence, rate limiting, API keys, custom backgrounds) | Done |
 | 2 | Bulk Upload Frontend | Planned |
 | 3 | Compression & Format Conversion (images + PDFs) | Planned |
 | 4 | Image Retouching | Planned |
@@ -52,25 +52,29 @@ Oracle Cloud ARM VM (free forever — 4 OCPU, 24GB RAM)
 
 ## Features
 
-### Available Now
+### Available Now (Phase 0 + 1)
 - Automatic background removal using **BiRefNet** AI model
 - Drag & drop single image upload
 - Batch processing (up to 20 images)
 - Real-time processing status with progress indicators
 - Before/after preview with transparency display
-- Auto-cleanup (24-hour file retention)
-- RESTful API with Swagger docs
-
-### Roadmap
-
-**Phase 1 — Infrastructure for Scale**
-- Persistent task queue (Huey + SQLite, replaces in-memory BackgroundTasks)
+- **Custom background colors** — 10 presets + native color picker + hex input
+- **Social media frames** — Instagram Post/Story, Facebook Post/Cover, Twitter/X, LinkedIn + custom dimensions
+- Canvas-based composite rendering with instant preview
+- Persistent task queue (Huey + SQLite)
 - Persistent job storage (SQLite, survives restarts)
 - Rate limiting (slowapi, tier-based)
 - Cloudflare R2 storage backend
-- API key generation & subscription management (Free / Pro / Enterprise)
+- API key generation & management (Free / Pro / Enterprise tiers)
 - Stripe Checkout for paid tiers
 - Usage tracking & quota enforcement
+- Auto-cleanup (24-hour file retention)
+- RESTful API with Swagger docs
+- Docker Compose orchestration
+- CI/CD with GitHub Actions
+- Full test suite (backend: pytest 80%+ coverage; frontend: TypeScript + ESLint)
+
+### Roadmap
 
 **Phase 2 — Bulk Upload**
 - Multi-file dropzone with thumbnails
@@ -261,8 +265,8 @@ bg-remover/
 │   ├── src/
 │   │   ├── app/               # Next.js pages + layout
 │   │   ├── components/        # React components
-│   │   ├── hooks/             # Custom hooks
-│   │   ├── lib/api.ts         # API client
+│   │   ├── hooks/             # Custom hooks (bg removal, canvas customization)
+│   │   ├── lib/               # API client, canvas compositor
 │   │   ├── store/             # Zustand store
 │   │   └── __tests__/         # Vitest tests
 │   ├── vitest.config.ts

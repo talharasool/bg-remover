@@ -65,16 +65,17 @@ class LocalStorage(StorageBackend):
         return False
 
     async def list_files(self, prefix: str = "") -> list[str]:
-        """List all files with optional prefix filter."""
+        """List all image files in original/ and processed/ directories."""
         files = []
-        base_dir = settings.upload_dir
-
-        for root, _, filenames in os.walk(base_dir):
-            for filename in filenames:
-                file_path = os.path.join(root, filename)
-                if prefix and not file_path.startswith(prefix):
-                    continue
-                files.append(file_path)
+        for base in (self.original_dir, self.processed_dir):
+            if not base.exists():
+                continue
+            for root, _, filenames in os.walk(base):
+                for filename in filenames:
+                    file_path = os.path.join(root, filename)
+                    if prefix and not file_path.startswith(prefix):
+                        continue
+                    files.append(file_path)
 
         return files
 

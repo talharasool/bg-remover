@@ -1,8 +1,9 @@
 interface ApiHeroProps {
   onViewDocs: () => void;
+  onGetApiKey: () => void;
 }
 
-export default function ApiHero({ onViewDocs }: ApiHeroProps) {
+export default function ApiHero({ onViewDocs, onGetApiKey }: ApiHeroProps) {
   return (
     <div className="text-center pt-25 pb-20">
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-full text-[13px] text-accent-2 mb-6">
@@ -22,7 +23,10 @@ export default function ApiHero({ onViewDocs }: ApiHeroProps) {
         >
           View Documentation
         </button>
-        <button className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold rounded-[10px] border-none bg-accent text-white cursor-pointer transition-all duration-300 ease-bounce hover:-translate-y-0.5 hover:shadow-[0_10px_30px_var(--color-accent-glow)] font-[inherit]">
+        <button
+          className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold rounded-[10px] border-none bg-accent text-white cursor-pointer transition-all duration-300 ease-bounce hover:-translate-y-0.5 hover:shadow-[0_10px_30px_var(--color-accent-glow)] font-[inherit]"
+          onClick={onGetApiKey}
+        >
           Get API Key
         </button>
       </div>
