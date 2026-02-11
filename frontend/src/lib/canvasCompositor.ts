@@ -126,6 +126,10 @@ function drawBackground(ctx: CanvasRenderingContext2D, layer: BackgroundLayer, w
   }
 }
 
+// Cache for composited mask result to avoid re-compositing every frame
+let _cachedMaskVersion = -1;
+let _cachedCompositedCanvas: HTMLCanvasElement | null = null;
+
 function drawSubject(ctx: CanvasRenderingContext2D, layer: SubjectLayer, canvasW: number, canvasH: number) {
   if (!layer.imageElement) return;
   const img = layer.imageElement;
@@ -133,14 +137,41 @@ function drawSubject(ctx: CanvasRenderingContext2D, layer: SubjectLayer, canvasW
   ctx.save();
   ctx.globalAlpha = layer.opacity;
 
-  // Contain-fit subject using layer position offsets
   const scale = Math.min(canvasW / img.naturalWidth, canvasH / img.naturalHeight);
   const sw = img.naturalWidth * scale;
   const sh = img.naturalHeight * scale;
   const baseX = (canvasW - sw) / 2;
   const baseY = (canvasH - sh) / 2;
 
-  ctx.drawImage(img, baseX + layer.x, baseY + layer.y, sw, sh);
+  if (layer.maskCanvas) {
+    // Check cache — only re-composite when mask changes
+    if (_cachedMaskVersion !== layer._maskVersion || !_cachedCompositedCanvas) {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+      const tempCtx = tempCanvas.getContext('2d')!;
+
+      // Use original image as source (enables restore brush),
+      // fall back to bg-removed image if original not loaded yet
+      const sourceImg = layer.originalImageElement ?? img;
+      tempCtx.drawImage(sourceImg, 0, 0, w, h);
+
+      // Apply mask: destination-in keeps only pixels where mask is white
+      tempCtx.globalCompositeOperation = 'destination-in';
+      tempCtx.drawImage(layer.maskCanvas, 0, 0);
+      tempCtx.globalCompositeOperation = 'source-over';
+
+      _cachedCompositedCanvas = tempCanvas;
+      _cachedMaskVersion = layer._maskVersion;
+    }
+
+    ctx.drawImage(_cachedCompositedCanvas!, baseX + layer.x, baseY + layer.y, sw, sh);
+  } else {
+    ctx.drawImage(img, baseX + layer.x, baseY + layer.y, sw, sh);
+  }
+
   ctx.restore();
 }
 

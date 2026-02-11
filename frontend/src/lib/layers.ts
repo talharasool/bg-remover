@@ -30,6 +30,9 @@ export interface BackgroundLayer extends BaseLayer {
 export interface SubjectLayer extends BaseLayer {
   type: 'subject';
   imageElement: HTMLImageElement | null;
+  maskCanvas: HTMLCanvasElement | null;
+  originalImageElement: HTMLImageElement | null;
+  _maskVersion: number;
 }
 
 export interface StickerLayer extends BaseLayer {
@@ -93,6 +96,9 @@ export function createSubjectLayer(img: HTMLImageElement | null): SubjectLayer {
     opacity: 1,
     visible: true,
     imageElement: img,
+    maskCanvas: null,
+    originalImageElement: null,
+    _maskVersion: 0,
   };
 }
 

@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshSvg, DownloadSvg } from '../icons/Icons';
 import { useCanvasEditor } from '@/hooks/useCanvasEditor';
 import { useCanvasDrag } from '@/hooks/useCanvasDrag';
+import { useRetouchBrush } from '@/hooks/useRetouchBrush';
+import { useEditorStore } from '@/store/editorStore';
+import { loadImage } from '@/lib/canvasCompositor';
+import { SubjectLayer } from '@/lib/layers';
 import EditorPanel from './EditorPanel';
 
 interface ResultViewProps {
@@ -16,6 +20,11 @@ interface ResultViewProps {
 
 export default function ResultView({ originalUrl, resultUrl, currentFileName, onReset, onDownload }: ResultViewProps) {
   const [resultTab, setResultTab] = useState<'result' | 'compare'>('result');
+  const [brushCursor, setBrushCursor] = useState<{ x: number; y: number } | null>(null);
+
+  const retouchMode = useEditorStore((s) => s.retouchMode);
+  const retouchTool = useEditorStore((s) => s.retouchTool);
+  const brushSize = useEditorStore((s) => s.brushSize);
 
   const {
     canvasRef,
@@ -34,7 +43,23 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     resetCustomization,
   } = useCanvasEditor(resultUrl, currentFileName);
 
-  const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag(canvasRef);
+  const dragHandlers = useCanvasDrag(canvasRef);
+  const retouchHandlers = useRetouchBrush(canvasRef);
+
+  // Load original image onto SubjectLayer for restore brush
+  useEffect(() => {
+    if (!originalUrl || !imageLoaded) return;
+
+    const subject = useEditorStore.getState().getSubject();
+    if (!subject || subject.originalImageElement) return;
+
+    loadImage(originalUrl).then((img) => {
+      const currentSubject = useEditorStore.getState().getSubject();
+      if (currentSubject) {
+        useEditorStore.getState().updateLayer(currentSubject.id, { originalImageElement: img } as Partial<SubjectLayer>);
+      }
+    }).catch(() => {});
+  }, [originalUrl, imageLoaded]);
 
   const handleDownload = () => {
     if (hasCustomization && imageLoaded) {
@@ -48,6 +73,49 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     resetCustomization();
     onReset();
   };
+
+  // Merge pointer handlers based on mode
+  const pointerHandlers = retouchMode
+    ? {
+        onPointerDown: retouchHandlers.onPointerDown,
+        onPointerMove: (e: React.PointerEvent<HTMLCanvasElement>) => {
+          retouchHandlers.onPointerMove(e);
+          // Update brush cursor position
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            setBrushCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+          }
+        },
+        onPointerUp: retouchHandlers.onPointerUp,
+      }
+    : {
+        onPointerDown: dragHandlers.onPointerDown,
+        onPointerMove: dragHandlers.onPointerMove,
+        onPointerUp: dragHandlers.onPointerUp,
+      };
+
+  // Compute brush cursor display size (CSS pixels)
+  const getBrushCursorSize = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 0;
+    const rect = canvas.getBoundingClientRect();
+    const subject = useEditorStore.getState().getSubject();
+    if (!subject?.imageElement) return 0;
+
+    const img = subject.imageElement;
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+    const scale = Math.min(canvasW / img.naturalWidth, canvasH / img.naturalHeight);
+    // brushSize is in image pixels, convert to CSS pixels
+    const displayScale = rect.width / canvasW;
+    return brushSize * scale * displayScale * 2;
+  }, [canvasRef, brushSize]);
+
+  const cursorSize = retouchMode && retouchTool !== 'magic-eraser' ? getBrushCursorSize() : 0;
+  const cursorClass = retouchMode
+    ? retouchTool === 'magic-eraser' ? 'cursor-crosshair' : 'cursor-none'
+    : 'cursor-grab active:cursor-grabbing';
 
   return (
     <div className="bg-surface rounded-3xl overflow-hidden border border-border">
@@ -91,16 +159,33 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
             <span className="absolute top-4 left-4 px-4 py-2 bg-black/60 backdrop-blur-[10px] rounded-lg text-xs font-semibold uppercase tracking-[0.05em] text-accent">Original</span>
             {originalUrl && <img src={originalUrl} alt="Original" className="max-h-[450px] max-w-full block" />}
           </div>
-          <div className="relative rounded-2xl overflow-hidden bg-surface shadow-[0_25px_50px_rgba(0,0,0,0.5)] transition-all duration-400 ease-bounce hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
+          <div
+            className="relative rounded-2xl overflow-hidden bg-surface shadow-[0_25px_50px_rgba(0,0,0,0.5)] transition-all duration-400 ease-bounce hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)]"
+            onMouseLeave={() => setBrushCursor(null)}
+          >
             <span className="absolute top-4 left-4 px-4 py-2 bg-black/60 backdrop-blur-[10px] rounded-lg text-xs font-semibold uppercase tracking-[0.05em] text-accent-2 z-10">Result</span>
             {imageLoaded ? (
-              <canvas
-                ref={canvasRef}
-                className="max-h-[450px] max-w-full block cursor-grab active:cursor-grabbing canvas-no-touch"
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-              />
+              <>
+                <canvas
+                  ref={canvasRef}
+                  className={`max-h-[450px] max-w-full block canvas-no-touch ${cursorClass}`}
+                  onPointerDown={pointerHandlers.onPointerDown}
+                  onPointerMove={pointerHandlers.onPointerMove}
+                  onPointerUp={pointerHandlers.onPointerUp}
+                />
+                {/* Brush cursor overlay */}
+                {retouchMode && retouchTool !== 'magic-eraser' && brushCursor && cursorSize > 0 && (
+                  <div
+                    className="absolute rounded-full border-2 border-white/60 mix-blend-difference pointer-events-none"
+                    style={{
+                      width: cursorSize,
+                      height: cursorSize,
+                      left: brushCursor.x - cursorSize / 2,
+                      top: brushCursor.y - cursorSize / 2,
+                    }}
+                  />
+                )}
+              </>
             ) : (
               resultUrl && <img src={resultUrl} alt="Result" className="max-h-[450px] max-w-full block" />
             )}
@@ -120,6 +205,10 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
           selectPreset={selectPreset}
           selectCustom={selectCustom}
           setCustomSize={setCustomSize}
+          onUndo={retouchHandlers.handleUndo}
+          onRedo={retouchHandlers.handleRedo}
+          canUndo={retouchHandlers.canUndo}
+          canRedo={retouchHandlers.canRedo}
         />
       )}
     </div>

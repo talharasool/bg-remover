@@ -6,6 +6,7 @@ import FrameSelector from './FrameSelector';
 import StickerPicker from './StickerPicker';
 import TextEditor from './TextEditor';
 import LayerList from './LayerList';
+import RetouchTools from './RetouchTools';
 import { type FramePreset } from '@/lib/canvasCompositor';
 
 interface EditorPanelProps {
@@ -18,15 +19,20 @@ interface EditorPanelProps {
   selectPreset: (preset: FramePreset | null) => void;
   selectCustom: () => void;
   setCustomSize: (w: number, h: number) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
-type EditorTab = 'background' | 'frame' | 'stickers' | 'text' | 'layers';
+type EditorTab = 'background' | 'frame' | 'stickers' | 'text' | 'retouch' | 'layers';
 
 const TABS: { id: EditorTab; label: string; icon: string }[] = [
   { id: 'background', label: 'Background', icon: 'M4 4h16v16H4z' },
   { id: 'frame', label: 'Frame', icon: 'M3 3h18v18H3zM7 7h10v10H7z' },
   { id: 'stickers', label: 'Stickers', icon: 'M12 2a10 10 0 110 20 10 10 0 010-20zm0 4a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm-4 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm8 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm-8 4c0 2.21 1.79 4 4 4s4-1.79 4-4H8z' },
   { id: 'text', label: 'Text', icon: 'M5 4v3h5.5v12h3V7H19V4H5z' },
+  { id: 'retouch', label: 'Retouch', icon: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z' },
   { id: 'layers', label: 'Layers', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
 ];
 
@@ -40,7 +46,12 @@ export default function EditorPanel({
   selectPreset,
   selectCustom,
   setCustomSize,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: EditorPanelProps) {
+  const noop = () => {};
   const [activeTab, setActiveTab] = useState<EditorTab>('background');
 
   return (
@@ -83,6 +94,14 @@ export default function EditorPanel({
         )}
         {activeTab === 'stickers' && <StickerPicker />}
         {activeTab === 'text' && <TextEditor />}
+        {activeTab === 'retouch' && (
+          <RetouchTools
+            onUndo={onUndo ?? noop}
+            onRedo={onRedo ?? noop}
+            canUndo={canUndo ?? false}
+            canRedo={canRedo ?? false}
+          />
+        )}
         {activeTab === 'layers' && <LayerList />}
       </div>
     </div>

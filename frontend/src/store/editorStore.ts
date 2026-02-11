@@ -23,6 +23,13 @@ interface EditorState {
   canvasWidth: number;
   canvasHeight: number;
 
+  // Retouch
+  retouchMode: boolean;
+  retouchTool: 'erase' | 'restore' | 'magic-eraser';
+  brushSize: number;
+  brushHardness: 'soft' | 'hard';
+  magicEraserTolerance: number;
+
   // Initialization
   initLayers: (subjectImage: HTMLImageElement) => void;
 
@@ -50,6 +57,14 @@ interface EditorState {
   getBackground: () => BackgroundLayer | undefined;
   getSubject: () => SubjectLayer | undefined;
 
+  // Retouch actions
+  setRetouchMode: (mode: boolean) => void;
+  setRetouchTool: (tool: 'erase' | 'restore' | 'magic-eraser') => void;
+  setBrushSize: (size: number) => void;
+  setBrushHardness: (hardness: 'soft' | 'hard') => void;
+  setMagicEraserTolerance: (tolerance: number) => void;
+  bumpMaskVersion: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -63,6 +78,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   customHeight: 1080,
   canvasWidth: 0,
   canvasHeight: 0,
+
+  retouchMode: false,
+  retouchTool: 'erase',
+  brushSize: 20,
+  brushHardness: 'hard',
+  magicEraserTolerance: 30,
 
   initLayers: (subjectImage: HTMLImageElement) => {
     const bg = createBackgroundLayer();
@@ -206,6 +227,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   getBackground: () => get().layers.find((l) => l.type === 'background') as BackgroundLayer | undefined,
   getSubject: () => get().layers.find((l) => l.type === 'subject') as SubjectLayer | undefined,
 
+  setRetouchMode: (mode) => set({ retouchMode: mode }),
+  setRetouchTool: (tool) => set({ retouchTool: tool }),
+  setBrushSize: (size) => set({ brushSize: size }),
+  setBrushHardness: (hardness) => set({ brushHardness: hardness }),
+  setMagicEraserTolerance: (tolerance) => set({ magicEraserTolerance: tolerance }),
+  bumpMaskVersion: () => {
+    const subject = get().layers.find((l) => l.type === 'subject') as SubjectLayer | undefined;
+    if (subject) {
+      set((state) => ({
+        layers: state.layers.map((l) =>
+          l.id === subject.id ? { ...l, _maskVersion: (l as SubjectLayer)._maskVersion + 1 } as Layer : l
+        ),
+      }));
+    }
+  },
+
   reset: () => {
     set({
       layers: [],
@@ -216,6 +253,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       customHeight: 1080,
       canvasWidth: 0,
       canvasHeight: 0,
+      retouchMode: false,
+      retouchTool: 'erase',
+      brushSize: 20,
+      brushHardness: 'hard',
+      magicEraserTolerance: 30,
     });
   },
 }));

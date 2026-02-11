@@ -88,6 +88,8 @@ export function useCanvasDrag(canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (useEditorStore.getState().retouchMode) return;
+
       const coords = getCanvasCoords(e.nativeEvent);
       if (!coords) return;
 
@@ -161,6 +163,7 @@ export function useCanvasDrag(canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (useEditorStore.getState().retouchMode) return;
       if (!dragRef.current) return;
 
       const coords = getCanvasCoords(e.nativeEvent);
