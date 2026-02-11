@@ -9,6 +9,7 @@ import { useEditorStore } from '@/store/editorStore';
 import { loadImage } from '@/lib/canvasCompositor';
 import { SubjectLayer } from '@/lib/layers';
 import EditorPanel from './EditorPanel';
+import ExportDialog from './ExportDialog';
 
 interface ResultViewProps {
   originalUrl: string;
@@ -21,10 +22,15 @@ interface ResultViewProps {
 export default function ResultView({ originalUrl, resultUrl, currentFileName, onReset, onDownload }: ResultViewProps) {
   const [resultTab, setResultTab] = useState<'result' | 'compare'>('result');
   const [brushCursor, setBrushCursor] = useState<{ x: number; y: number } | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const retouchMode = useEditorStore((s) => s.retouchMode);
   const retouchTool = useEditorStore((s) => s.retouchTool);
   const brushSize = useEditorStore((s) => s.brushSize);
+  const isFullscreen = useEditorStore((s) => s.isFullscreen);
+  const zoomLevel = useEditorStore((s) => s.zoomLevel);
+  const setFullscreen = useEditorStore((s) => s.setFullscreen);
+  const setZoomLevel = useEditorStore((s) => s.setZoomLevel);
 
   const {
     canvasRef,
@@ -40,6 +46,7 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     hasCustomization,
     imageLoaded,
     downloadComposite,
+    exportComposite,
     resetCustomization,
   } = useCanvasEditor(resultUrl, currentFileName);
 
@@ -73,6 +80,44 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     resetCustomization();
     onReset();
   };
+
+  // Keyboard shortcuts: Ctrl+Z / Cmd+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo, Escape = exit fullscreen
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!retouchMode) return;
+
+      // Escape exits fullscreen
+      if (e.key === 'Escape' && isFullscreen) {
+        setFullscreen(false);
+        return;
+      }
+
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        retouchHandlers.handleUndo();
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault();
+        retouchHandlers.handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [retouchMode, isFullscreen, setFullscreen, retouchHandlers.handleUndo, retouchHandlers.handleRedo]);
+
+  // Ctrl+scroll to zoom in fullscreen
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!isFullscreen || !e.ctrlKey) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.25 : 0.25;
+      setZoomLevel(zoomLevel + delta);
+    },
+    [isFullscreen, zoomLevel, setZoomLevel]
+  );
 
   // Merge pointer handlers based on mode
   const pointerHandlers = retouchMode
@@ -113,8 +158,10 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
   }, [canvasRef, brushSize]);
 
   const cursorSize = retouchMode && retouchTool !== 'magic-eraser' ? getBrushCursorSize() : 0;
+  // Use crosshair for very small brushes (< 6px display) to avoid offset issues
+  const useOverlayCursor = cursorSize >= 6;
   const cursorClass = retouchMode
-    ? retouchTool === 'magic-eraser' ? 'cursor-crosshair' : 'cursor-none'
+    ? retouchTool === 'magic-eraser' || !useOverlayCursor ? 'cursor-crosshair' : 'cursor-none'
     : 'cursor-grab active:cursor-grabbing';
 
   return (
@@ -144,10 +191,10 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
           </button>
           <button
             className="inline-flex items-center gap-2 px-5 py-3 text-[15px] font-semibold rounded-[10px] border-none bg-accent text-white cursor-pointer transition-all duration-300 ease-bounce hover:-translate-y-0.5 hover:shadow-[0_10px_30px_var(--color-accent-glow)] font-[inherit]"
-            onClick={handleDownload}
+            onClick={() => imageLoaded ? setShowExportDialog(true) : handleDownload()}
           >
             <DownloadSvg />
-            Download
+            Export
           </button>
         </div>
       </div>
@@ -174,14 +221,15 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
                   onPointerUp={pointerHandlers.onPointerUp}
                 />
                 {/* Brush cursor overlay */}
-                {retouchMode && retouchTool !== 'magic-eraser' && brushCursor && cursorSize > 0 && (
+                {retouchMode && retouchTool !== 'magic-eraser' && brushCursor && useOverlayCursor && (
                   <div
-                    className="absolute rounded-full border-2 border-white/60 mix-blend-difference pointer-events-none"
+                    className="absolute rounded-full mix-blend-difference pointer-events-none"
                     style={{
                       width: cursorSize,
                       height: cursorSize,
                       left: brushCursor.x - cursorSize / 2,
                       top: brushCursor.y - cursorSize / 2,
+                      boxShadow: '0 0 0 2px rgba(255,255,255,0.6)',
                     }}
                   />
                 )}
@@ -190,6 +238,66 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
               resultUrl && <img src={resultUrl} alt="Result" className="max-h-[450px] max-w-full block" />
             )}
           </div>
+
+          {/* Fullscreen overlay for retouching */}
+          {isFullscreen && retouchMode && imageLoaded && (
+            <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onWheel={handleWheel}>
+              <div className="relative" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }}>
+                <canvas
+                  ref={canvasRef}
+                  className={`max-h-[90vh] max-w-[90vw] block canvas-no-touch ${cursorClass}`}
+                  onPointerDown={pointerHandlers.onPointerDown}
+                  onPointerMove={(e) => {
+                    pointerHandlers.onPointerMove(e);
+                    const canvas = canvasRef.current;
+                    if (canvas) {
+                      const rect = canvas.getBoundingClientRect();
+                      setBrushCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                    }
+                  }}
+                  onPointerUp={pointerHandlers.onPointerUp}
+                />
+                {retouchTool !== 'magic-eraser' && brushCursor && useOverlayCursor && (
+                  <div
+                    className="absolute rounded-full mix-blend-difference pointer-events-none"
+                    style={{
+                      width: cursorSize,
+                      height: cursorSize,
+                      left: brushCursor.x - cursorSize / 2,
+                      top: brushCursor.y - cursorSize / 2,
+                      boxShadow: '0 0 0 2px rgba(255,255,255,0.6)',
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Zoom controls */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2">
+                <button
+                  onClick={() => setZoomLevel(zoomLevel - 0.25)}
+                  disabled={zoomLevel <= 0.5}
+                  className="text-white/80 hover:text-white disabled:text-white/30 text-lg font-bold w-8 h-8 flex items-center justify-center cursor-pointer bg-transparent border-none font-[inherit]"
+                >
+                  -
+                </button>
+                <span className="text-white/80 text-sm min-w-[50px] text-center">{Math.round(zoomLevel * 100)}%</span>
+                <button
+                  onClick={() => setZoomLevel(zoomLevel + 0.25)}
+                  disabled={zoomLevel >= 4}
+                  className="text-white/80 hover:text-white disabled:text-white/30 text-lg font-bold w-8 h-8 flex items-center justify-center cursor-pointer bg-transparent border-none font-[inherit]"
+                >
+                  +
+                </button>
+                <div className="w-px h-5 bg-white/20 mx-1" />
+                <button
+                  onClick={() => setFullscreen(false)}
+                  className="text-white/80 hover:text-white text-lg w-8 h-8 flex items-center justify-center cursor-pointer bg-transparent border-none font-[inherit]"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -209,6 +317,17 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
           onRedo={retouchHandlers.handleRedo}
           canUndo={retouchHandlers.canUndo}
           canRedo={retouchHandlers.canRedo}
+        />
+      )}
+
+      {/* Export dialog */}
+      {showExportDialog && (
+        <ExportDialog
+          canvasWidth={useEditorStore.getState().canvasWidth}
+          canvasHeight={useEditorStore.getState().canvasHeight}
+          currentFileName={currentFileName}
+          onExport={exportComposite}
+          onClose={() => setShowExportDialog(false)}
         />
       )}
     </div>

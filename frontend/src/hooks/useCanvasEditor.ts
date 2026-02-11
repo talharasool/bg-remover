@@ -121,6 +121,33 @@ export function useCanvasEditor(resultUrl: string, currentFileName: string) {
     URL.revokeObjectURL(url);
   }, [layers, getCanvasDimensions, hasLayers, currentFileName]);
 
+  const exportComposite = useCallback(async (
+    format: 'image/png' | 'image/jpeg' | 'image/webp',
+    quality: number,
+    width: number,
+    height: number,
+    fileName: string
+  ) => {
+    if (!hasLayers) return;
+
+    const offscreen = document.createElement('canvas');
+    renderLayers(offscreen, {
+      layers,
+      width,
+      height,
+      selectedLayerId: null,
+      showHandles: false,
+    });
+
+    const blob = await canvasToBlob(offscreen, format, quality);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [layers, hasLayers]);
+
   const resetEditor = useCallback(() => {
     reset();
     initedRef.current = false;
@@ -132,6 +159,7 @@ export function useCanvasEditor(resultUrl: string, currentFileName: string) {
     hasCustomization,
     imageLoaded: hasLayers,
     downloadComposite,
+    exportComposite,
     resetCustomization: resetEditor,
     // Frame controls (pass-through for FrameSelector compat)
     bgColor: (bg?.type === 'background' ? bg.color : null) ?? null,

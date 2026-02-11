@@ -3,7 +3,7 @@
 import { useCallback, useRef } from 'react';
 import { useEditorStore } from '@/store/editorStore';
 import { Layer, SubjectLayer, StickerLayer, TextLayer } from '@/lib/layers';
-import { measureTextLayer } from '@/lib/canvasCompositor';
+import { measureTextLayer, getDeleteButtonCenter } from '@/lib/canvasCompositor';
 
 interface DragState {
   layerId: string;
@@ -95,6 +95,23 @@ export function useCanvasDrag(canvasRef: React.RefObject<HTMLCanvasElement | nul
 
       const store = useEditorStore.getState();
       const { layers, selectedLayerId, canvasWidth, canvasHeight } = store;
+
+      // Check if clicking on the delete button of currently selected layer
+      if (selectedLayerId) {
+        const selected = layers.find((l) => l.id === selectedLayerId);
+        if (selected) {
+          const deleteBtn = getDeleteButtonCenter(selected, canvasWidth, canvasHeight);
+          if (deleteBtn) {
+            const dx = coords.x - deleteBtn.x;
+            const dy = coords.y - deleteBtn.y;
+            if (dx * dx + dy * dy <= deleteBtn.radius * deleteBtn.radius) {
+              store.removeLayer(selectedLayerId);
+              e.preventDefault();
+              return;
+            }
+          }
+        }
+      }
 
       // Check if clicking on a resize handle of currently selected layer
       if (selectedLayerId) {
