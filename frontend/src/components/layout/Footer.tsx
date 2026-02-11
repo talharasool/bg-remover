@@ -1,6 +1,6 @@
 import { LogoSvg, TwitterSvg, GithubSvg, LinkedInSvg } from '../icons/Icons';
 
-type PageName = 'home' | 'pricing' | 'api';
+type PageName = 'home' | 'pricing' | 'api' | 'appicons';
 
 interface FooterProps {
   navigate: (page: PageName) => void;

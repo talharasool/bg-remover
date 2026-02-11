@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { RefreshSvg, DownloadSvg } from '../icons/Icons';
-import { useCanvasCustomization } from '@/hooks/useCanvasCustomization';
-import ColorPicker from './ColorPicker';
-import FrameSelector from './FrameSelector';
+import { useCanvasEditor } from '@/hooks/useCanvasEditor';
+import { useCanvasDrag } from '@/hooks/useCanvasDrag';
+import EditorPanel from './EditorPanel';
 
 interface ResultViewProps {
   originalUrl: string;
@@ -32,7 +32,9 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     imageLoaded,
     downloadComposite,
     resetCustomization,
-  } = useCanvasCustomization(resultUrl, currentFileName);
+  } = useCanvasEditor(resultUrl, currentFileName);
+
+  const { onPointerDown, onPointerMove, onPointerUp } = useCanvasDrag(canvasRef);
 
   const handleDownload = () => {
     if (hasCustomization && imageLoaded) {
@@ -91,8 +93,14 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
           </div>
           <div className="relative rounded-2xl overflow-hidden bg-surface shadow-[0_25px_50px_rgba(0,0,0,0.5)] transition-all duration-400 ease-bounce hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
             <span className="absolute top-4 left-4 px-4 py-2 bg-black/60 backdrop-blur-[10px] rounded-lg text-xs font-semibold uppercase tracking-[0.05em] text-accent-2 z-10">Result</span>
-            {hasCustomization && imageLoaded ? (
-              <canvas ref={canvasRef} className="max-h-[450px] max-w-full block" />
+            {imageLoaded ? (
+              <canvas
+                ref={canvasRef}
+                className="max-h-[450px] max-w-full block cursor-grab active:cursor-grabbing canvas-no-touch"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+              />
             ) : (
               resultUrl && <img src={resultUrl} alt="Result" className="max-h-[450px] max-w-full block" />
             )}
@@ -100,20 +108,19 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
         </div>
       </div>
 
-      {/* Customization panel — visible when Result tab active */}
+      {/* Editor panel — visible when Result tab active */}
       {resultTab === 'result' && (
-        <div className="px-5 md:px-7 py-5 bg-surface-light border-t border-border space-y-5">
-          <ColorPicker value={bgColor} onChange={setBgColor} />
-          <FrameSelector
-            activePreset={framePreset}
-            isCustom={isCustomFrame}
-            customWidth={customWidth}
-            customHeight={customHeight}
-            onSelectPreset={selectPreset}
-            onSelectCustom={selectCustom}
-            onCustomSizeChange={setCustomSize}
-          />
-        </div>
+        <EditorPanel
+          bgColor={bgColor}
+          setBgColor={setBgColor}
+          framePreset={framePreset}
+          isCustomFrame={isCustomFrame}
+          customWidth={customWidth}
+          customHeight={customHeight}
+          selectPreset={selectPreset}
+          selectCustom={selectCustom}
+          setCustomSize={setCustomSize}
+        />
       )}
     </div>
   );

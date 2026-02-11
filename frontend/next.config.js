@@ -2,7 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'images.pexels.com'],
   },
   async rewrites() {
     return [

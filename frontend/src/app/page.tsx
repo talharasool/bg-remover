@@ -5,7 +5,6 @@ import { useBackgroundRemoval } from '@/hooks/useBackgroundRemoval';
 import BackgroundEffects from '@/components/layout/BackgroundEffects';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import FooterMinimal from '@/components/layout/FooterMinimal';
 import HeroSection from '@/components/home/HeroSection';
 import DropZone from '@/components/home/DropZone';
 import FeatureCards from '@/components/home/FeatureCards';
@@ -23,8 +22,9 @@ import ApiPricing from '@/components/api/ApiPricing';
 import DocsCta from '@/components/api/DocsCta';
 import ApiKeySignup from '@/components/api/ApiKeySignup';
 import ApiDashboard from '@/components/api/ApiDashboard';
+import AppIconPage from '@/components/appicons/AppIconPage';
 
-type PageName = 'home' | 'pricing' | 'api';
+type PageName = 'home' | 'pricing' | 'api' | 'appicons';
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<PageName>('home');
@@ -102,7 +102,7 @@ export default function Home() {
           <ComparisonTable />
           <FaqSection />
         </div>
-        <FooterMinimal showSocial />
+        <Footer navigate={navigate} />
       </div>
 
       {/* API PAGE */}
@@ -141,7 +141,15 @@ export default function Home() {
           <ApiPricing />
           <DocsCta />
         </div>
-        <FooterMinimal />
+        <Footer navigate={navigate} />
+      </div>
+
+      {/* APP ICONS PAGE */}
+      <div className={`relative z-10 min-h-screen pt-20 animate-page-in ${currentPage === 'appicons' ? 'block' : 'hidden'}`}>
+        <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+          <AppIconPage />
+        </div>
+        <Footer navigate={navigate} />
       </div>
     </>
   );

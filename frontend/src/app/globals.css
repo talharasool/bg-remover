@@ -171,6 +171,11 @@
   animation: shimmer 1.5s infinite;
 }
 
+/* Canvas editor — prevent touch scroll while dragging */
+.canvas-no-touch {
+  touch-action: none;
+}
+
 /* Native color input dark theme */
 input[type="color"] {
   -webkit-appearance: none;
