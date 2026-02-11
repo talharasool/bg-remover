@@ -1,9 +1,10 @@
-from pydantic import BaseModel
-from enum import Enum
 from datetime import datetime
+from enum import StrEnum
+
+from pydantic import BaseModel
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"

@@ -1,19 +1,21 @@
-import aiofiles
 import os
 from pathlib import Path
-from .base import StorageBackend
+
+import aiofiles
+
 from ...config import settings
+from .base import StorageBackend
 
 
 class LocalStorage(StorageBackend):
     """Local filesystem storage backend."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.original_dir = settings.original_dir
         self.processed_dir = settings.processed_dir
         self._ensure_dirs()
 
-    def _ensure_dirs(self):
+    def _ensure_dirs(self) -> None:
         """Ensure storage directories exist."""
         self.original_dir.mkdir(parents=True, exist_ok=True)
         self.processed_dir.mkdir(parents=True, exist_ok=True)
@@ -24,7 +26,7 @@ class LocalStorage(StorageBackend):
         job_dir.mkdir(parents=True, exist_ok=True)
 
         file_path = job_dir / filename
-        async with aiofiles.open(file_path, 'wb') as f:
+        async with aiofiles.open(file_path, "wb") as f:
             await f.write(file_content)
 
         return str(file_path)
@@ -39,7 +41,7 @@ class LocalStorage(StorageBackend):
         output_filename = f"{base_name}.png"
         file_path = job_dir / output_filename
 
-        async with aiofiles.open(file_path, 'wb') as f:
+        async with aiofiles.open(file_path, "wb") as f:
             await f.write(file_content)
 
         return str(file_path)
@@ -50,8 +52,9 @@ class LocalStorage(StorageBackend):
         if not file_path.exists():
             return None
 
-        async with aiofiles.open(file_path, 'rb') as f:
-            return await f.read()
+        async with aiofiles.open(file_path, "rb") as f:
+            content: bytes = await f.read()
+            return content
 
     async def delete_file(self, path: str) -> bool:
         """Delete a file by path."""
