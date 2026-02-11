@@ -170,3 +170,16 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   animation: shimmer 1.5s infinite;
 }
+
+/* Native color input dark theme */
+input[type="color"] {
+  -webkit-appearance: none;
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}

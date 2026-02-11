@@ -1,6 +1,8 @@
-from fastapi import APIRouter, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 
+from ....middleware.api_key_auth import check_batch_allowed, optional_api_key
 from ....middleware.rate_limit import limiter
+from ....models.api_key import ApiKey
 from ....models.schemas import UploadResponse
 from ....services.job_manager import job_manager
 from ....services.storage.local import storage
@@ -12,7 +14,11 @@ router = APIRouter()
 
 @router.post("/remove-bg", response_model=UploadResponse)
 @limiter.limit("10/minute")
-async def remove_background(request: Request, file: UploadFile = File(...)) -> UploadResponse:
+async def remove_background(
+    request: Request,
+    file: UploadFile = File(...),
+    api_key: ApiKey | None = Depends(optional_api_key),
+) -> UploadResponse:
     """Upload a single image for background removal."""
 
     # Validate the image
@@ -37,8 +43,15 @@ async def remove_background(request: Request, file: UploadFile = File(...)) -> U
 
 @router.post("/remove-bg/batch", response_model=UploadResponse)
 @limiter.limit("5/minute")
-async def remove_background_batch(request: Request, files: list[UploadFile] = File(...)) -> UploadResponse:
+async def remove_background_batch(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    api_key: ApiKey | None = Depends(optional_api_key),
+) -> UploadResponse:
     """Upload multiple images for background removal (max 20)."""
+
+    # Check if batch is allowed for this tier
+    check_batch_allowed(api_key)
 
     # Validate all files
     validated_files = await validate_batch(files)

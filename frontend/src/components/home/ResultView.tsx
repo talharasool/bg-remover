@@ -2,16 +2,50 @@
 
 import { useState } from 'react';
 import { RefreshSvg, DownloadSvg } from '../icons/Icons';
+import { useCanvasCustomization } from '@/hooks/useCanvasCustomization';
+import ColorPicker from './ColorPicker';
+import FrameSelector from './FrameSelector';
 
 interface ResultViewProps {
   originalUrl: string;
   resultUrl: string;
+  currentFileName: string;
   onReset: () => void;
   onDownload: () => void;
 }
 
-export default function ResultView({ originalUrl, resultUrl, onReset, onDownload }: ResultViewProps) {
+export default function ResultView({ originalUrl, resultUrl, currentFileName, onReset, onDownload }: ResultViewProps) {
   const [resultTab, setResultTab] = useState<'result' | 'compare'>('result');
+
+  const {
+    canvasRef,
+    bgColor,
+    setBgColor,
+    framePreset,
+    isCustomFrame,
+    customWidth,
+    customHeight,
+    selectPreset,
+    selectCustom,
+    setCustomSize,
+    hasCustomization,
+    imageLoaded,
+    downloadComposite,
+    resetCustomization,
+  } = useCanvasCustomization(resultUrl, currentFileName);
+
+  const handleDownload = () => {
+    if (hasCustomization && imageLoaded) {
+      downloadComposite();
+    } else {
+      onDownload();
+    }
+  };
+
+  const handleReset = () => {
+    resetCustomization();
+    onReset();
+  };
 
   return (
     <div className="bg-surface rounded-3xl overflow-hidden border border-border">
@@ -33,20 +67,22 @@ export default function ResultView({ originalUrl, resultUrl, onReset, onDownload
         <div className="flex gap-3">
           <button
             className="inline-flex items-center gap-2 px-5 py-3 text-[15px] font-semibold rounded-[10px] border border-border bg-surface text-text cursor-pointer transition-all duration-300 ease-bounce hover:bg-surface-light hover:border-border-light font-[inherit]"
-            onClick={onReset}
+            onClick={handleReset}
           >
             <RefreshSvg />
             New Image
           </button>
           <button
             className="inline-flex items-center gap-2 px-5 py-3 text-[15px] font-semibold rounded-[10px] border-none bg-accent text-white cursor-pointer transition-all duration-300 ease-bounce hover:-translate-y-0.5 hover:shadow-[0_10px_30px_var(--color-accent-glow)] font-[inherit]"
-            onClick={onDownload}
+            onClick={handleDownload}
           >
             <DownloadSvg />
             Download
           </button>
         </div>
       </div>
+
+      {/* Preview area */}
       <div className="checkerboard-bg p-6 md:p-15 flex justify-center items-center min-h-[500px]">
         <div className={`flex flex-col md:flex-row gap-10 items-center ${resultTab === 'result' ? '[&>*:first-child]:hidden' : ''}`}>
           <div className="relative rounded-2xl overflow-hidden bg-surface shadow-[0_25px_50px_rgba(0,0,0,0.5)] transition-all duration-400 ease-bounce hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
@@ -54,11 +90,31 @@ export default function ResultView({ originalUrl, resultUrl, onReset, onDownload
             {originalUrl && <img src={originalUrl} alt="Original" className="max-h-[450px] max-w-full block" />}
           </div>
           <div className="relative rounded-2xl overflow-hidden bg-surface shadow-[0_25px_50px_rgba(0,0,0,0.5)] transition-all duration-400 ease-bounce hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
-            <span className="absolute top-4 left-4 px-4 py-2 bg-black/60 backdrop-blur-[10px] rounded-lg text-xs font-semibold uppercase tracking-[0.05em] text-accent-2">Result</span>
-            {resultUrl && <img src={resultUrl} alt="Result" className="max-h-[450px] max-w-full block" />}
+            <span className="absolute top-4 left-4 px-4 py-2 bg-black/60 backdrop-blur-[10px] rounded-lg text-xs font-semibold uppercase tracking-[0.05em] text-accent-2 z-10">Result</span>
+            {hasCustomization && imageLoaded ? (
+              <canvas ref={canvasRef} className="max-h-[450px] max-w-full block" />
+            ) : (
+              resultUrl && <img src={resultUrl} alt="Result" className="max-h-[450px] max-w-full block" />
+            )}
           </div>
         </div>
       </div>
+
+      {/* Customization panel — visible when Result tab active */}
+      {resultTab === 'result' && (
+        <div className="px-5 md:px-7 py-5 bg-surface-light border-t border-border space-y-5">
+          <ColorPicker value={bgColor} onChange={setBgColor} />
+          <FrameSelector
+            activePreset={framePreset}
+            isCustom={isCustomFrame}
+            customWidth={customWidth}
+            customHeight={customHeight}
+            onSelectPreset={selectPreset}
+            onSelectCustom={selectCustom}
+            onCustomSizeChange={setCustomSize}
+          />
+        </div>
+      )}
     </div>
   );
 }

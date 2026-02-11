@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_default: str = "60/minute"
 
+    # Stripe settings (only used for paid tier upgrades)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_pro_price_id: str = ""
+    stripe_enterprise_price_id: str = ""
+    frontend_url: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
 

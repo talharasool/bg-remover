@@ -12,3 +12,7 @@ huey = SqliteHuey(
     filename=str(_db_path),
     immediate=False,  # Set True in tests to run tasks synchronously
 )
+
+# Import worker module so tasks are registered when the consumer loads this module.
+# This must come AFTER huey is defined to avoid circular imports.
+import app.tasks.worker as _worker  # noqa: E402, F401
