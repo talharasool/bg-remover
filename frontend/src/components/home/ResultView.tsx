@@ -157,11 +157,12 @@ export default function ResultView({ originalUrl, resultUrl, currentFileName, on
     return brushSize * scale * displayScale * 2;
   }, [canvasRef, brushSize]);
 
-  const cursorSize = retouchMode && retouchTool !== 'magic-eraser' ? getBrushCursorSize() : 0;
+  const cursorSize = retouchMode && retouchTool !== 'magic-eraser' && retouchTool !== 'watermark-remover' ? getBrushCursorSize() : 0;
   // Use crosshair for very small brushes (< 6px display) to avoid offset issues
   const useOverlayCursor = cursorSize >= 6;
   const cursorClass = retouchMode
-    ? retouchTool === 'magic-eraser' || !useOverlayCursor ? 'cursor-crosshair' : 'cursor-none'
+    ? retouchTool === 'watermark-remover' ? 'cursor-default'
+      : retouchTool === 'magic-eraser' || !useOverlayCursor ? 'cursor-crosshair' : 'cursor-none'
     : 'cursor-grab active:cursor-grabbing';
 
   return (

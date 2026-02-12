@@ -21,6 +21,19 @@ def _get_session() -> Any:
     return _rembg_session
 
 
+# Lazy-loaded watermark remover (heavy import, only load in worker process)
+_watermark_remover: Any = None
+
+
+def _get_watermark_remover() -> Any:
+    global _watermark_remover
+    if _watermark_remover is None:
+        from ..services.watermark_remover import WatermarkRemover
+
+        _watermark_remover = WatermarkRemover()
+    return _watermark_remover
+
+
 def _run_async(coro: Any) -> Any:
     """Run an async coroutine from sync Huey worker context."""
     loop = asyncio.new_event_loop()
@@ -70,3 +83,31 @@ def process_batch_task(job_id: str, images: list[dict]) -> None:
             original_path=img["original_path"],
             original_filename=img["filename"],
         )
+
+
+@huey.task()
+def remove_watermark_task(job_id: str, image_id: str, original_path: str, original_filename: str) -> str:
+    """Remove watermark from an image using OpenCV detection + LaMa inpainting.
+
+    Runs synchronously inside the Huey worker process.
+    """
+    try:
+        job_manager.update_image_status(job_id, image_id, JobStatus.PROCESSING)
+
+        image_data = _run_async(storage.get_file(original_path))
+        if not image_data:
+            raise ValueError("Original image not found")
+
+        remover = _get_watermark_remover()
+        processed_data: bytes = remover.remove_watermark(image_data)
+
+        processed_path: str = _run_async(storage.save_processed(processed_data, original_filename, job_id))
+
+        download_url = f"/api/v1/download/{job_id}/{image_id}"
+        job_manager.update_image_status(job_id, image_id, JobStatus.COMPLETED, download_url=download_url)
+
+        return processed_path
+
+    except Exception as e:
+        job_manager.update_image_status(job_id, image_id, JobStatus.FAILED, error=str(e))
+        raise

@@ -62,6 +62,7 @@ export function useRetouchBrush(canvasRef: React.RefObject<HTMLCanvasElement | n
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       const store = useEditorStore.getState();
       if (!store.retouchMode) return;
+      if (store.retouchTool === 'watermark-remover') return;
 
       const coords = getCanvasCoords(e.nativeEvent);
       if (!coords) return;
@@ -126,7 +127,7 @@ export function useRetouchBrush(canvasRef: React.RefObject<HTMLCanvasElement | n
       if (!paintRef.current) return;
 
       const store = useEditorStore.getState();
-      if (!store.retouchMode || store.retouchTool === 'magic-eraser') return;
+      if (!store.retouchMode || store.retouchTool === 'magic-eraser' || store.retouchTool === 'watermark-remover') return;
 
       const coords = getCanvasCoords(e.nativeEvent);
       if (!coords) return;
