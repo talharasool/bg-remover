@@ -85,6 +85,23 @@ export async function downloadImage(jobId: string, imageId: string): Promise<Blo
   return response.blob();
 }
 
+export async function removeWatermark(imageBlob: Blob, filename: string): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('file', imageBlob, filename);
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/remove-watermark`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to remove watermark');
+  }
+
+  return response.json();
+}
+
 // ---------------------------------------------------------------------------
 // API Key Management
 // ---------------------------------------------------------------------------

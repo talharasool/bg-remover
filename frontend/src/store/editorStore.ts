@@ -25,10 +25,15 @@ interface EditorState {
 
   // Retouch
   retouchMode: boolean;
-  retouchTool: 'erase' | 'restore' | 'magic-eraser';
+  retouchTool: 'erase' | 'restore' | 'magic-eraser' | 'watermark-remover';
   brushSize: number;
   brushHardness: 'soft' | 'hard';
   magicEraserTolerance: number;
+
+  // Watermark removal
+  watermarkRemovalStatus: 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
+  watermarkRemovalError: string | null;
+  watermarkRemovalJobId: string | null;
 
   // Zoom/Fullscreen
   isFullscreen: boolean;
@@ -63,13 +68,19 @@ interface EditorState {
 
   // Retouch actions
   setRetouchMode: (mode: boolean) => void;
-  setRetouchTool: (tool: 'erase' | 'restore' | 'magic-eraser') => void;
+  setRetouchTool: (tool: 'erase' | 'restore' | 'magic-eraser' | 'watermark-remover') => void;
   setBrushSize: (size: number) => void;
   setBrushHardness: (hardness: 'soft' | 'hard') => void;
   setMagicEraserTolerance: (tolerance: number) => void;
   setFullscreen: (isFullscreen: boolean) => void;
   setZoomLevel: (zoom: number) => void;
   bumpMaskVersion: () => void;
+
+  // Watermark removal actions
+  setWatermarkRemovalStatus: (status: 'idle' | 'uploading' | 'processing' | 'completed' | 'failed') => void;
+  setWatermarkRemovalError: (error: string | null) => void;
+  setWatermarkRemovalJobId: (jobId: string | null) => void;
+  replaceSubjectImage: (newImage: HTMLImageElement) => void;
 
   // Reset
   reset: () => void;
@@ -92,6 +103,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   magicEraserTolerance: 30,
   isFullscreen: false,
   zoomLevel: 1,
+
+  watermarkRemovalStatus: 'idle',
+  watermarkRemovalError: null,
+  watermarkRemovalJobId: null,
 
   initLayers: (subjectImage: HTMLImageElement) => {
     const bg = createBackgroundLayer();
@@ -253,6 +268,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  setWatermarkRemovalStatus: (status) => set({ watermarkRemovalStatus: status }),
+  setWatermarkRemovalError: (error) => set({ watermarkRemovalError: error }),
+  setWatermarkRemovalJobId: (jobId) => set({ watermarkRemovalJobId: jobId }),
+  replaceSubjectImage: (newImage: HTMLImageElement) => {
+    set((state) => ({
+      layers: state.layers.map((l) =>
+        l.type === 'subject'
+          ? { ...l, imageElement: newImage, maskCanvas: null, _maskVersion: 0 } as SubjectLayer
+          : l
+      ),
+    }));
+  },
+
   reset: () => {
     set({
       layers: [],
@@ -270,6 +298,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       magicEraserTolerance: 30,
       isFullscreen: false,
       zoomLevel: 1,
+      watermarkRemovalStatus: 'idle',
+      watermarkRemovalError: null,
+      watermarkRemovalJobId: null,
     });
   },
 }));

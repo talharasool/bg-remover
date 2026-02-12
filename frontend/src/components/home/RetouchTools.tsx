@@ -1,6 +1,7 @@
 'use client';
 
 import { useEditorStore } from '@/store/editorStore';
+import { useWatermarkRemoval } from '@/hooks/useWatermarkRemoval';
 
 interface RetouchToolsProps {
   onUndo: () => void;
@@ -13,6 +14,7 @@ const TOOLS = [
   { id: 'erase' as const, label: 'Erase', tip: 'Paint to remove areas from the subject' },
   { id: 'restore' as const, label: 'Restore', tip: 'Paint to bring back removed areas' },
   { id: 'magic-eraser' as const, label: 'Magic Eraser', tip: 'Click to auto-erase similar colors' },
+  { id: 'watermark-remover' as const, label: 'Watermark', tip: 'Auto-detect and remove watermarks using AI' },
 ];
 
 export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: RetouchToolsProps) {
@@ -21,6 +23,8 @@ export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: Retou
   const brushSize = useEditorStore((s) => s.brushSize);
   const brushHardness = useEditorStore((s) => s.brushHardness);
   const magicEraserTolerance = useEditorStore((s) => s.magicEraserTolerance);
+  const watermarkStatus = useEditorStore((s) => s.watermarkRemovalStatus);
+  const watermarkError = useEditorStore((s) => s.watermarkRemovalError);
 
   const isFullscreen = useEditorStore((s) => s.isFullscreen);
   const setRetouchMode = useEditorStore((s) => s.setRetouchMode);
@@ -30,7 +34,12 @@ export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: Retou
   const setMagicEraserTolerance = useEditorStore((s) => s.setMagicEraserTolerance);
   const setFullscreen = useEditorStore((s) => s.setFullscreen);
 
+  const { startRemoval, cancelRemoval } = useWatermarkRemoval();
+
   const activeTool = TOOLS.find((t) => t.id === retouchTool);
+
+  const showBrushControls = retouchTool !== 'magic-eraser' && retouchTool !== 'watermark-remover';
+  const isWatermarkProcessing = watermarkStatus === 'uploading' || watermarkStatus === 'processing';
 
   return (
     <div className="space-y-4">
@@ -72,7 +81,7 @@ export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: Retou
           </div>
 
           {/* Brush size (erase/restore only) */}
-          {retouchTool !== 'magic-eraser' && (
+          {showBrushControls && (
             <div>
               <label className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5 block">
                 Brush Size: {brushSize}px
@@ -89,7 +98,7 @@ export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: Retou
           )}
 
           {/* Brush hardness (erase/restore only) */}
-          {retouchTool !== 'magic-eraser' && (
+          {showBrushControls && (
             <div>
               <label className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5 block">Edge</label>
               <div className="flex gap-2">
@@ -131,6 +140,84 @@ export default function RetouchTools({ onUndo, onRedo, canUndo, canRedo }: Retou
                 onChange={(e) => setMagicEraserTolerance(+e.target.value)}
                 className="w-full accent-accent"
               />
+            </div>
+          )}
+
+          {/* Watermark removal UI */}
+          {retouchTool === 'watermark-remover' && (
+            <div className="space-y-3">
+              <p className="text-xs text-text-dim">
+                AI will automatically detect and remove watermarks from the subject image.
+              </p>
+
+              {watermarkStatus === 'idle' && (
+                <button
+                  onClick={startRemoval}
+                  className="w-full px-4 py-3 text-sm font-semibold rounded-lg border-none bg-accent text-white cursor-pointer transition-all duration-200 font-[inherit] hover:opacity-90"
+                >
+                  Remove Watermark
+                </button>
+              )}
+
+              {watermarkStatus === 'uploading' && (
+                <div className="space-y-2">
+                  <button
+                    disabled
+                    className="w-full px-4 py-3 text-sm font-semibold rounded-lg border-none bg-accent/60 text-white cursor-not-allowed font-[inherit] flex items-center justify-center gap-2"
+                  >
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                    Uploading...
+                  </button>
+                  <button
+                    onClick={cancelRemoval}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface-light text-text-muted hover:text-text cursor-pointer transition-all duration-200 font-[inherit]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {watermarkStatus === 'processing' && (
+                <div className="space-y-2">
+                  <button
+                    disabled
+                    className="w-full px-4 py-3 text-sm font-semibold rounded-lg border-none bg-accent/60 text-white cursor-not-allowed font-[inherit] flex items-center justify-center gap-2"
+                  >
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                    Removing watermark...
+                  </button>
+                  <button
+                    onClick={cancelRemoval}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface-light text-text-muted hover:text-text cursor-pointer transition-all duration-200 font-[inherit]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {watermarkStatus === 'completed' && (
+                <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm text-center font-semibold">
+                  Watermark removed successfully!
+                </div>
+              )}
+
+              {watermarkStatus === 'failed' && (
+                <div className="space-y-2">
+                  <div className="px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+                    {watermarkError || 'Watermark removal failed'}
+                  </div>
+                  <button
+                    onClick={startRemoval}
+                    className="w-full px-4 py-3 text-sm font-semibold rounded-lg border-none bg-accent text-white cursor-pointer transition-all duration-200 font-[inherit] hover:opacity-90"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
